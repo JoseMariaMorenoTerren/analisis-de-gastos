@@ -124,7 +124,7 @@ class TestAuthServiceHealth:
         - El tiempo de respuesta es inferior a 100ms (requisito no funcional)
         """
         start_time = time.time()
-        response = requests.get(AUTH_HEALTH_ENDPOINT)
+        requests.get(AUTH_HEALTH_ENDPOINT)
         end_time = time.time()
         
         response_time = (end_time - start_time) * 1000  # Convertir a milisegundos
@@ -234,7 +234,7 @@ class TestDataCollectionServiceHealth:
     def test_health_response_time(self):
         """Test: El endpoint debe responder rápidamente (< 100ms)."""
         start_time = time.time()
-        response = requests.get(DATA_COLLECTION_HEALTH_ENDPOINT)
+        requests.get(DATA_COLLECTION_HEALTH_ENDPOINT)
         end_time = time.time()
         
         response_time = (end_time - start_time) * 1000
@@ -296,7 +296,7 @@ class TestDataManipulationServiceHealth:
     def test_health_response_time(self):
         """Test: El endpoint debe responder rápidamente (< 100ms)."""
         start_time = time.time()
-        response = requests.get(DATA_MANIPULATION_HEALTH_ENDPOINT)
+        requests.get(DATA_MANIPULATION_HEALTH_ENDPOINT)
         end_time = time.time()
         
         response_time = (end_time - start_time) * 1000
@@ -375,7 +375,7 @@ class TestDataExtractionServiceHealth:
     def test_health_response_time(self):
         """Test: El endpoint debe responder rápidamente (< 100ms)."""
         start_time = time.time()
-        response = requests.get(DATA_EXTRACTION_HEALTH_ENDPOINT)
+        requests.get(DATA_EXTRACTION_HEALTH_ENDPOINT)
         end_time = time.time()
         
         response_time = (end_time - start_time) * 1000

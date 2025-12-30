@@ -5,7 +5,7 @@ Puerto: 8004
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from datetime import datetime
+from datetime import datetime, timezone
 import time
 
 app = FastAPI(
@@ -46,7 +46,7 @@ async def health_check():
         "status": "healthy",
         "service": "data-extraction-service",
         "version": "1.0.0",
-        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "uptime": uptime,
         "checks": {
             "filesystem": {
