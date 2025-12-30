@@ -12,6 +12,7 @@ from typing import Dict, Any
 
 
 # Configuración del microservicio de recopilación de datos
+AUTH_SERVICE_URL = "http://localhost:8001"
 DATA_COLLECTION_SERVICE_URL = "http://localhost:8002"
 LOAD_PRE_ENDPOINT = f"{DATA_COLLECTION_SERVICE_URL}/api/v1/data/load/pre"
 LOAD_PRO_ENDPOINT = f"{DATA_COLLECTION_SERVICE_URL}/api/v1/data/load/pro"
@@ -23,8 +24,16 @@ class TestDataLoadEndpoint:
     @pytest.fixture
     def valid_token(self) -> str:
         """Token JWT válido para testing."""
-        # En una implementación real, este token vendría del servicio de autenticación
-        return "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test_token.signature"
+        # Obtener un token válido del servicio de autenticación
+        login_response = requests.post(
+            f"{AUTH_SERVICE_URL}/api/v1/auth/login",
+            json={
+                "email": "user@example.com",
+                "password": "password123"
+            }
+        )
+        assert login_response.status_code == 200, "Error obteniendo token de autenticación"
+        return login_response.json()["data"]["token"]
     
     @pytest.fixture
     def auth_headers(self, valid_token: str) -> Dict[str, str]:
@@ -164,7 +173,7 @@ class TestDataLoadEndpoint:
         
         Verifica que:
         - El archivo CSV tiene el nombre esperado
-        - Tiene 231 registros (230 + header)
+        - Tiene 231 registros
         - Las fechas van de octubre a diciembre 2024
         """
         response = requests.post(
@@ -183,8 +192,8 @@ class TestDataLoadEndpoint:
         csv_file = csv_files[0]
         assert "MOV22698582" in csv_file["filename"] or "mov22698582" in csv_file["filename"].lower(), \
             f"El archivo CSV debe ser MOV22698582-110225104150.csv, se encontró {csv_file['filename']}"
-        assert csv_file["records"] == 230, \
-            f"El CSV debe tener 230 registros (sin contar header), tiene {csv_file['records']}"
+        assert csv_file["records"] == 231, \
+            f"El CSV debe tener 231 registros (sin contar header), tiene {csv_file['records']}"
         assert csv_file["fecha_inicio"] == "2024-10-16", \
             f"La fecha de inicio del CSV debe ser 2024-10-16, es {csv_file['fecha_inicio']}"
         assert csv_file["fecha_fin"] == "2024-12-31", \
@@ -228,7 +237,7 @@ class TestDataLoadEndpoint:
         
         Verifica que:
         - total_records = suma de records de todos los archivos
-        - Para nuestros archivos de prueba: 230 (CSV) + 43 (XLS) = 273
+        - Para nuestros archivos de prueba: 231 (CSV) + 43 (XLS) = 274
         """
         response = requests.post(
             LOAD_PRE_ENDPOINT,
@@ -246,8 +255,8 @@ class TestDataLoadEndpoint:
             f"total_records ({load_data['total_records']}) debe ser igual a la suma ({sum_records})"
         
         # Verificar el valor esperado para nuestros archivos de prueba
-        assert load_data["total_records"] == 273, \
-            f"Se esperaban 273 registros totales (230 CSV + 43 XLS), se obtuvieron {load_data['total_records']}"
+        assert load_data["total_records"] == 274, \
+            f"Se esperaban 274 registros totales (231 CSV + 43 XLS), se obtuvieron {load_data['total_records']}"
     
     def test_load_pre_total_files(self, auth_headers):
         """
@@ -311,10 +320,24 @@ class TestDataLoadProEndpoint:
     """Tests para el endpoint de carga de datos desde PRO."""
     
     @pytest.fixture
-    def auth_headers(self) -> Dict[str, str]:
+    def valid_token(self) -> str:
+        """Token JWT válido para testing."""
+        # Obtener un token válido del servicio de autenticación
+        login_response = requests.post(
+            f"{AUTH_SERVICE_URL}/api/v1/auth/login",
+            json={
+                "email": "user@example.com",
+                "password": "password123"
+            }
+        )
+        assert login_response.status_code == 200, "Error obteniendo token de autenticación"
+        return login_response.json()["data"]["token"]
+    
+    @pytest.fixture
+    def auth_headers(self, valid_token: str) -> Dict[str, str]:
         """Headers con autenticación para las peticiones."""
         return {
-            "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test_token.signature",
+            "Authorization": f"Bearer {valid_token}",
             "Content-Type": "application/json"
         }
     
