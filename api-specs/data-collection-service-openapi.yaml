@@ -43,6 +43,12 @@ servers:
 tags:
   - name: Health
     description: Endpoints de verificación de salud del servicio
+  - name: Carga de Datos
+    description: Endpoints para carga de datos desde archivos
+  - name: Datos de Cuenta
+    description: Endpoints para obtener datos de cuenta bancaria
+  - name: Datos de Tarjetas
+    description: Endpoints para obtener datos de tarjetas de crédito/débito
   - name: Gastos
     description: Endpoints para gestión de gastos (futuro)
   - name: Categorías
@@ -148,6 +154,529 @@ paths:
                         status: connecting
                         response_time_ms: null
 
+  /api/v1/data/load/pre:
+    post:
+      tags:
+        - Carga de Datos
+      summary: Cargar datos desde carpeta PRE (pruebas)
+      description: |
+        Carga archivos CSV o Excel desde la carpeta de datos de prueba (datos-pre).
+        
+        **Caso de Uso:** 03-Carga-Datos
+        
+        Este endpoint:
+        - Lee todos los archivos CSV, XLS y XLSX de la carpeta datos-pre/
+        - Procesa cada archivo y extrae metadatos
+        - Carga los datos en memoria/base de datos
+        - Devuelve un resumen de la carga
+        
+        **Archivos soportados:**
+        - CSV (delimitadores: coma, punto y coma, tabulador)
+        - Excel XLS (Excel 97-2003)
+        - Excel XLSX (Excel 2007+)
+        
+        **Columnas requeridas:**
+        - Al menos una columna de fecha (fecha, date, Fecha, Date, FECHA)
+        
+        **Uso:** Desarrollo, testing y pruebas
+      operationId: loadDataPre
+      security:
+        - bearerAuth: []
+      requestBody:
+        description: Opciones de carga (opcional)
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                clear_existing:
+                  type: boolean
+                  description: Si es true, elimina los datos existentes antes de cargar
+                  default: false
+            examples:
+              default:
+                summary: Carga normal (no elimina datos existentes)
+                value:
+                  clear_existing: false
+              clearFirst:
+                summary: Limpiar antes de cargar
+                value:
+                  clear_existing: true
+      responses:
+        '200':
+          description: Datos cargados exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataLoadSuccessResponse'
+              examples:
+                successful:
+                  summary: Carga exitosa con 2 archivos
+                  value:
+                    success: true
+                    message: Datos cargados exitosamente desde PRE
+                    data:
+                      environment: pre
+                      total_files: 2
+                      total_records: 39
+                      files:
+                        - filename: gastos_enero_2025.csv
+                          format: csv
+                          records: 22
+                          fecha_inicio: "2025-01-01"
+                          fecha_fin: "2025-01-31"
+                          size_bytes: 1245
+                        - filename: gastos_febrero_2025.xlsx
+                          format: xlsx
+                          records: 17
+                          fecha_inicio: "2025-02-01"
+                          fecha_fin: "2025-02-28"
+                          size_bytes: 8932
+                      loaded_at: "2025-12-30T10:30:00Z"
+        '401':
+          description: No autorizado - Token inválido o expirado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidToken:
+                  summary: Token inválido
+                  value:
+                    success: false
+                    message: Token inválido o expirado
+                    error_code: INVALID_TOKEN
+        '403':
+          description: Prohibido - Sin permisos para cargar datos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                insufficientPermissions:
+                  summary: Sin permisos
+                  value:
+                    success: false
+                    message: No tiene permisos para cargar datos
+                    error_code: INSUFFICIENT_PERMISSIONS
+        '404':
+          description: No se encontraron archivos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                noFiles:
+                  summary: Carpeta vacía
+                  value:
+                    success: false
+                    message: No se encontraron archivos para cargar en PRE
+                    error_code: NO_FILES_FOUND
+        '413':
+          description: Archivo demasiado grande
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                fileTooLarge:
+                  summary: Archivo excede tamaño máximo
+                  value:
+                    success: false
+                    message: El archivo excede el tamaño máximo permitido
+                    errors:
+                      gastos_completo.xlsx:
+                        - "Tamaño: 75MB, Máximo permitido: 10MB"
+                    error_code: FILE_TOO_LARGE
+        '422':
+          description: Error al procesar archivos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileProcessingErrorResponse'
+              examples:
+                processingError:
+                  summary: Error en formato de archivo
+                  value:
+                    success: false
+                    message: Error al procesar archivos
+                    errors:
+                      gastos_marzo.csv:
+                        - Formato de archivo inválido
+                        - No se encontró columna de fecha
+                    error_code: FILE_PROCESSING_ERROR
+                    data:
+                      processed_files: 1
+                      failed_files: 1
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/data/load/pro:
+    post:
+      tags:
+        - Carga de Datos
+      summary: Cargar datos desde carpeta PRO (producción)
+      description: |
+        Carga archivos CSV o Excel desde la carpeta de datos de producción (datos-pro).
+        
+        **Caso de Uso:** 03-Carga-Datos
+        
+        **⚠️ IMPORTANTE:** Este endpoint carga datos reales de producción.
+        Se recomienda hacer backup antes de usar.
+        
+        Funciona igual que /load/pre pero lee de la carpeta datos-pro/
+        
+        **Diferencias con PRE:**
+        - Validaciones más estrictas
+        - Límite de tamaño: 50MB (vs 10MB en PRE)
+        - Genera backup automático antes de cargar
+        - Logs más resumidos
+        
+        **Uso:** Solo en producción con datos reales
+      operationId: loadDataPro
+      security:
+        - bearerAuth: []
+      requestBody:
+        description: Opciones de carga (opcional)
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                clear_existing:
+                  type: boolean
+                  description: Si es true, elimina los datos existentes antes de cargar
+                  default: false
+      responses:
+        '200':
+          description: Datos cargados exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataLoadSuccessResponse'
+              examples:
+                successful:
+                  summary: Carga exitosa desde PRO
+                  value:
+                    success: true
+                    message: Datos cargados exitosamente desde PRO
+                    data:
+                      environment: pro
+                      total_files: 3
+                      total_records: 1250
+                      files:
+                        - filename: gastos_2024.xlsx
+                          format: xlsx
+                          records: 1250
+                          fecha_inicio: "2024-01-01"
+                          fecha_fin: "2024-12-31"
+                          size_bytes: 45678
+                      loaded_at: "2025-12-30T10:30:00Z"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/data/account:
+    get:
+      tags:
+        - Datos de Cuenta
+      summary: Obtener datos de cuenta bancaria con paginación
+      description: |
+        Devuelve todos los registros de archivos Excel (XLS/XLSX) concatenados del entorno especificado.
+        
+        **Caso de Uso:** 04-obtener-datos-cuenta
+        
+        Este endpoint:
+        - Devuelve únicamente datos de archivos Excel (excluye CSV)
+        - Concatena todos los archivos XLS/XLSX del entorno
+        - Ordena los registros por fecha ascendente
+        - Soporta paginación (máximo 2000 registros por página)
+        - Incluye el nombre del archivo de origen en cada registro
+        
+        **Parámetros de paginación:**
+        - page: Número de página (base 1), por defecto 1
+        - page_size: Registros por página (1-2000), por defecto 2000
+      operationId: getAccountData
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: environment
+          in: query
+          required: true
+          description: Entorno de datos (pre o pro)
+          schema:
+            type: string
+            enum: [pre, pro]
+          example: pre
+        - name: page
+          in: query
+          required: false
+          description: Número de página a obtener (base 1)
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          example: 1
+        - name: page_size
+          in: query
+          required: false
+          description: Cantidad de registros por página (máximo 2000)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 2000
+            default: 2000
+          example: 2000
+      responses:
+        '200':
+          description: Datos obtenidos exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountDataResponse'
+              examples:
+                with_data:
+                  summary: Datos disponibles con paginación
+                  value:
+                    success: true
+                    message: Datos de cuenta obtenidos exitosamente
+                    data:
+                      environment: pre
+                      pagination:
+                        current_page: 1
+                        page_size: 2000
+                        total_records: 43
+                        total_pages: 1
+                        has_next: false
+                        has_previous: false
+                      records:
+                        - fecha: "2025-01-01"
+                          f_valor: "2025-01-01"
+                          concepto: "PAGO TARJETA CREDITO"
+                          importe: -125.50
+                          saldo: 1874.50
+                          source_file: "excelFile_1739266641274.xls"
+                        - fecha: "2025-01-02"
+                          f_valor: "2025-01-02"
+                          concepto: "TRANSFERENCIA RECIBIDA"
+                          importe: 500.00
+                          saldo: 2374.50
+                          source_file: "excelFile_1739266641274.xls"
+                      retrieved_at: "2025-12-30T14:30:00Z"
+                empty:
+                  summary: Entorno sin datos
+                  value:
+                    success: true
+                    message: No hay datos disponibles en el entorno especificado
+                    data:
+                      environment: pro
+                      pagination:
+                        current_page: 1
+                        page_size: 2000
+                        total_records: 0
+                        total_pages: 0
+                        has_next: false
+                        has_previous: false
+                      records: []
+                      retrieved_at: "2025-12-30T14:30:00Z"
+        '400':
+          description: Parámetros inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                missing_environment:
+                  summary: Parámetro environment faltante
+                  value:
+                    success: false
+                    error:
+                      code: MISSING_PARAMETER
+                      message: El parámetro 'environment' es requerido
+                invalid_environment:
+                  summary: Environment inválido
+                  value:
+                    success: false
+                    error:
+                      code: INVALID_ENVIRONMENT
+                      message: El entorno debe ser 'pre' o 'pro'
+                invalid_page:
+                  summary: Página fuera de rango
+                  value:
+                    success: false
+                    error:
+                      code: INVALID_PAGE
+                      message: La página solicitada no existe. Total de páginas 1
+                invalid_page_size:
+                  summary: Tamaño de página inválido
+                  value:
+                    success: false
+                    error:
+                      code: INVALID_PAGE_SIZE
+                      message: El tamaño de página debe estar entre 1 y 2000
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/data/cards:
+    get:
+      tags:
+        - Datos de Tarjetas
+      summary: Obtener datos de tarjetas de crédito/débito con paginación
+      description: |
+        Devuelve todos los registros de archivos CSV concatenados del entorno especificado.
+        
+        **Caso de Uso:** 05-obtener-datos-tarjetas
+        
+        Este endpoint:
+        - Devuelve únicamente datos de archivos CSV (excluye Excel)
+        - Concatena todos los archivos CSV del entorno
+        - Ordena los registros por fecha y hora ascendente
+        - Soporta paginación (máximo 2000 registros por página)
+        - Incluye el nombre del archivo de origen en cada registro
+        
+        **Parámetros de paginación:**
+        - page: Número de página (base 1), por defecto 1
+        - page_size: Registros por página (1-2000), por defecto 2000
+      operationId: getCardData
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: environment
+          in: query
+          required: true
+          description: Entorno de datos (pre o pro)
+          schema:
+            type: string
+            enum: [pre, pro]
+          example: pre
+        - name: page
+          in: query
+          required: false
+          description: Número de página a obtener (base 1)
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          example: 1
+        - name: page_size
+          in: query
+          required: false
+          description: Cantidad de registros por página (máximo 2000)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 2000
+            default: 2000
+          example: 2000
+      responses:
+        '200':
+          description: Datos obtenidos exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardDataResponse'
+              examples:
+                with_data:
+                  summary: Datos disponibles con paginación
+                  value:
+                    success: true
+                    message: Datos de tarjetas obtenidos exitosamente
+                    data:
+                      environment: pre
+                      pagination:
+                        current_page: 1
+                        page_size: 2000
+                        total_records: 230
+                        total_pages: 1
+                        has_next: false
+                        has_previous: false
+                      records:
+                        - operacion: "C"
+                          fecha_hora: "2024-10-16 10:30:00"
+                          tipo: "COMPRA EN ESTABLECIMIENTO"
+                          importe: -45.80
+                          comision: 0.0
+                          establecimiento: "SUPERMERCADO XYZ"
+                          source_file: "MOV22698582-110225104150.csv"
+                        - operacion: "C"
+                          fecha_hora: "2024-10-17 15:22:00"
+                          tipo: "COMPRA ONLINE"
+                          importe: -89.99
+                          comision: 0.0
+                          establecimiento: "TIENDA ONLINE ABC"
+                          source_file: "MOV22698582-110225104150.csv"
+                      retrieved_at: "2025-12-30T14:30:00Z"
+                empty:
+                  summary: Entorno sin datos
+                  value:
+                    success: true
+                    message: No hay datos disponibles en el entorno especificado
+                    data:
+                      environment: pro
+                      pagination:
+                        current_page: 1
+                        page_size: 2000
+                        total_records: 0
+                        total_pages: 0
+                        has_next: false
+                        has_previous: false
+                      records: []
+                      retrieved_at: "2025-12-30T14:30:00Z"
+        '400':
+          description: Parámetros inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                missing_environment:
+                  summary: Parámetro environment faltante
+                  value:
+                    success: false
+                    error:
+                      code: MISSING_PARAMETER
+                      message: El parámetro 'environment' es requerido
+                invalid_environment:
+                  summary: Environment inválido
+                  value:
+                    success: false
+                    error:
+                      code: INVALID_ENVIRONMENT
+                      message: El entorno debe ser 'pre' o 'pro'
+                invalid_page:
+                  summary: Página fuera de rango
+                  value:
+                    success: false
+                    error:
+                      code: INVALID_PAGE
+                      message: La página solicitada no existe. Total de páginas 1
+                invalid_page_size:
+                  summary: Tamaño de página inválido
+                  value:
+                    success: false
+                    error:
+                      code: INVALID_PAGE_SIZE
+                      message: El tamaño de página debe estar entre 1 y 2000
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
 components:
   schemas:
     HealthResponse:
@@ -224,6 +753,434 @@ components:
           type: string
           description: Mensaje de error (solo presente cuando hay problemas)
           example: "Connection timeout"
+
+    DataLoadSuccessResponse:
+      type: object
+      required:
+        - success
+        - message
+        - data
+      properties:
+        success:
+          type: boolean
+          description: Indica si la operación fue exitosa
+          example: true
+        message:
+          type: string
+          description: Mensaje descriptivo del resultado
+          example: Datos cargados exitosamente desde PRE
+        data:
+          type: object
+          required:
+            - environment
+            - total_files
+            - total_records
+            - files
+            - loaded_at
+          properties:
+            environment:
+              type: string
+              description: Entorno de carga (pre o pro)
+              enum: [pre, pro]
+              example: pre
+            total_files:
+              type: integer
+              description: Número total de archivos procesados
+              example: 2
+            total_records:
+              type: integer
+              description: Número total de registros cargados
+              example: 39
+            files:
+              type: array
+              description: Lista de archivos procesados
+              items:
+                $ref: '#/components/schemas/LoadedFileInfo'
+            loaded_at:
+              type: string
+              format: date-time
+              description: Timestamp de cuando se realizó la carga
+              example: "2025-12-30T10:30:00Z"
+
+    LoadedFileInfo:
+      type: object
+      required:
+        - filename
+        - format
+        - records
+        - fecha_inicio
+        - fecha_fin
+      properties:
+        filename:
+          type: string
+          description: Nombre del archivo procesado
+          example: gastos_enero_2025.csv
+        format:
+          type: string
+          description: Formato del archivo
+          enum: [csv, xls, xlsx]
+          example: csv
+        records:
+          type: integer
+          description: Número de registros en el archivo
+          minimum: 0
+          example: 22
+        fecha_inicio:
+          type: string
+          format: date
+          description: Fecha del primer registro
+          example: "2025-01-01"
+        fecha_fin:
+          type: string
+          format: date
+          description: Fecha del último registro
+          example: "2025-01-31"
+        size_bytes:
+          type: integer
+          description: Tamaño del archivo en bytes
+          example: 1245
+
+    AccountDataResponse:
+      type: object
+      required:
+        - success
+        - message
+        - data
+      properties:
+        success:
+          type: boolean
+          description: Indica si la operación fue exitosa
+          example: true
+        message:
+          type: string
+          description: Mensaje descriptivo del resultado
+          example: Datos de cuenta obtenidos exitosamente
+        data:
+          type: object
+          required:
+            - environment
+            - pagination
+            - records
+            - retrieved_at
+          properties:
+            environment:
+              type: string
+              description: Entorno de donde se obtuvieron los datos
+              enum: [pre, pro]
+              example: pre
+            pagination:
+              $ref: '#/components/schemas/PaginationMetadata'
+            records:
+              type: array
+              description: Array de registros de cuenta
+              items:
+                $ref: '#/components/schemas/AccountRecord'
+            retrieved_at:
+              type: string
+              format: date-time
+              description: Timestamp de cuando se obtuvieron los datos
+              example: "2025-12-30T14:30:00Z"
+
+    PaginationMetadata:
+      type: object
+      required:
+        - current_page
+        - page_size
+        - total_records
+        - total_pages
+        - has_next
+        - has_previous
+      properties:
+        current_page:
+          type: integer
+          description: Número de la página actual (base 1)
+          minimum: 1
+          example: 1
+        page_size:
+          type: integer
+          description: Cantidad de registros por página
+          minimum: 1
+          maximum: 2000
+          example: 2000
+        total_records:
+          type: integer
+          description: Total de registros disponibles
+          minimum: 0
+          example: 43
+        total_pages:
+          type: integer
+          description: Total de páginas disponibles
+          minimum: 0
+          example: 1
+        has_next:
+          type: boolean
+          description: Indica si hay una página siguiente
+          example: false
+        has_previous:
+          type: boolean
+          description: Indica si hay una página anterior
+          example: false
+
+    AccountRecord:
+      type: object
+      required:
+        - fecha
+        - f_valor
+        - concepto
+        - importe
+        - saldo
+        - source_file
+      properties:
+        fecha:
+          type: string
+          format: date
+          description: Fecha de la operación
+          example: "2025-01-01"
+        f_valor:
+          type: string
+          format: date
+          description: Fecha valor de la operación
+          example: "2025-01-01"
+        concepto:
+          type: string
+          description: Descripción/concepto de la operación
+          example: "PAGO TARJETA CREDITO"
+        importe:
+          type: number
+          format: float
+          description: Importe de la operación (puede ser negativo)
+          example: -125.50
+        saldo:
+          type: number
+          format: float
+          description: Saldo de la cuenta después de la operación
+          example: 1874.50
+        source_file:
+          type: string
+          description: Nombre del archivo Excel de origen
+          example: "excelFile_1739266641274.xls"
+
+    CardDataResponse:
+      type: object
+      required:
+        - success
+        - message
+        - data
+      properties:
+        success:
+          type: boolean
+          description: Indica si la operación fue exitosa
+          example: true
+        message:
+          type: string
+          description: Mensaje descriptivo del resultado
+          example: Datos de tarjetas obtenidos exitosamente
+        data:
+          type: object
+          required:
+            - environment
+            - pagination
+            - records
+            - retrieved_at
+          properties:
+            environment:
+              type: string
+              description: Entorno de donde se obtuvieron los datos
+              enum: [pre, pro]
+              example: pre
+            pagination:
+              $ref: '#/components/schemas/PaginationMetadata'
+            records:
+              type: array
+              description: Array de registros de tarjetas
+              items:
+                $ref: '#/components/schemas/CardRecord'
+            retrieved_at:
+              type: string
+              format: date-time
+              description: Timestamp de cuando se obtuvieron los datos
+              example: "2025-12-30T14:30:00Z"
+
+    CardRecord:
+      type: object
+      required:
+        - operacion
+        - fecha_hora
+        - tipo
+        - importe
+        - comision
+        - establecimiento
+        - source_file
+      properties:
+        operacion:
+          type: string
+          description: Tipo de operación (C=Cargo, A=Abono, etc.)
+          example: "C"
+        fecha_hora:
+          type: string
+          format: date-time
+          description: Fecha y hora de la operación
+          example: "2024-10-16 10:30:00"
+        tipo:
+          type: string
+          description: Tipo/descripción de la operación
+          example: "COMPRA EN ESTABLECIMIENTO"
+        importe:
+          type: number
+          format: float
+          description: Importe de la operación (puede ser negativo)
+          example: -45.80
+        comision:
+          type: number
+          format: float
+          description: Comisión aplicada a la operación
+          example: 0.0
+        establecimiento:
+          type: string
+          description: Nombre del establecimiento
+          example: "SUPERMERCADO XYZ"
+        source_file:
+          type: string
+          description: Nombre del archivo CSV de origen
+          example: "MOV22698582-110225104150.csv"
+
+    ErrorResponse:
+      type: object
+      required:
+        - success
+        - message
+        - error_code
+      properties:
+        success:
+          type: boolean
+          description: Indica si la operación fue exitosa (siempre false)
+          example: false
+        message:
+          type: string
+          description: Mensaje descriptivo del error
+          example: Token inválido o expirado
+        error_code:
+          type: string
+          description: Código único del error
+          example: INVALID_TOKEN
+          enum:
+            - INVALID_TOKEN
+            - INSUFFICIENT_PERMISSIONS
+            - NO_FILES_FOUND
+            - FILE_TOO_LARGE
+            - FILE_PROCESSING_ERROR
+            - INTERNAL_SERVER_ERROR
+
+    ValidationErrorResponse:
+      type: object
+      required:
+        - success
+        - message
+        - errors
+        - error_code
+      properties:
+        success:
+          type: boolean
+          description: Indica si la operación fue exitosa (siempre false)
+          example: false
+        message:
+          type: string
+          description: Mensaje general del error
+          example: El archivo excede el tamaño máximo permitido
+        errors:
+          type: object
+          description: Mapa de errores por archivo
+          additionalProperties:
+            type: array
+            items:
+              type: string
+          example:
+            gastos_completo.xlsx:
+              - "Tamaño: 75MB, Máximo permitido: 10MB"
+        error_code:
+          type: string
+          description: Código del error
+          example: FILE_TOO_LARGE
+
+    FileProcessingErrorResponse:
+      type: object
+      required:
+        - success
+        - message
+        - errors
+        - error_code
+      properties:
+        success:
+          type: boolean
+          description: Indica si la operación fue exitosa (siempre false)
+          example: false
+        message:
+          type: string
+          description: Mensaje general del error
+          example: Error al procesar archivos
+        errors:
+          type: object
+          description: Mapa de errores por archivo
+          additionalProperties:
+            type: array
+            items:
+              type: string
+          example:
+            gastos_marzo.csv:
+              - Formato de archivo inválido
+              - No se encontró columna de fecha
+        error_code:
+          type: string
+          description: Código del error
+          example: FILE_PROCESSING_ERROR
+        data:
+          type: object
+          description: Datos adicionales sobre el procesamiento
+          properties:
+            processed_files:
+              type: integer
+              description: Número de archivos procesados exitosamente
+              example: 1
+            failed_files:
+              type: integer
+              description: Número de archivos que fallaron
+              example: 1
+
+  responses:
+    Unauthorized:
+      description: No autorizado - Token inválido o expirado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    
+    Forbidden:
+      description: Prohibido - Sin permisos
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    
+    NotFound:
+      description: No se encontraron archivos
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    
+    UnprocessableEntity:
+      description: Error al procesar archivos
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/FileProcessingErrorResponse'
+    
+    InternalServerError:
+      description: Error interno del servidor
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
 
   securitySchemes:
     bearerAuth:
