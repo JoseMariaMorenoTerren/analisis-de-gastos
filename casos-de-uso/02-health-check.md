@@ -16,7 +16,7 @@ Este caso de uso describe el endpoint de verificación de salud (health check) p
 
 ## Microservicios Aplicables
 
-Este caso de uso se aplica a los tres microservicios:
+Este caso de uso se aplica a los cuatro microservicios:
 
 1. **Microservicio de Autenticación** (Puerto 8001)
    - Endpoint: `GET /api/v1/health`
@@ -29,6 +29,10 @@ Este caso de uso se aplica a los tres microservicios:
 3. **Microservicio de Manipulación de Datos** (Puerto 8003)
    - Endpoint: `GET /api/v1/health`
    - Dependencias: Base de datos de análisis, Servicio de Recopilación
+
+4. **Microservicio de Extracción de Datos** (Puerto 8004)
+   - Endpoint: `GET /api/v1/health`
+   - Dependencias: Sistema de archivos, Servicio de Autenticación
 
 ## Flujo Principal
 

@@ -15,11 +15,13 @@ from typing import Dict, Any
 AUTH_SERVICE_URL = "http://localhost:8001"
 DATA_COLLECTION_SERVICE_URL = "http://localhost:8002"
 DATA_MANIPULATION_SERVICE_URL = "http://localhost:8003"
+DATA_EXTRACTION_SERVICE_URL = "http://localhost:8004"
 
 # Endpoints de health
 AUTH_HEALTH_ENDPOINT = f"{AUTH_SERVICE_URL}/api/v1/health"
 DATA_COLLECTION_HEALTH_ENDPOINT = f"{DATA_COLLECTION_SERVICE_URL}/api/v1/health"
 DATA_MANIPULATION_HEALTH_ENDPOINT = f"{DATA_MANIPULATION_SERVICE_URL}/api/v1/health"
+DATA_EXTRACTION_HEALTH_ENDPOINT = f"{DATA_EXTRACTION_SERVICE_URL}/api/v1/health"
 
 
 class TestAuthServiceHealth:
@@ -303,6 +305,85 @@ class TestDataManipulationServiceHealth:
             f"El tiempo de respuesta ({response_time:.2f}ms) debe ser inferior a 100ms"
 
 
+class TestDataExtractionServiceHealth:
+    """Tests para el endpoint de health check del microservicio de extracción de datos."""
+    
+    def test_health_endpoint_accessible(self):
+        """
+        Test: El endpoint de health debe ser accesible sin autenticación.
+        
+        Verifica que:
+        - El endpoint responde sin requerir headers de autenticación
+        - El endpoint es público
+        """
+        response = requests.get(DATA_EXTRACTION_HEALTH_ENDPOINT)
+        
+        assert response.status_code in [200, 503], \
+            f"Se esperaba código 200 o 503, se obtuvo {response.status_code}"
+        assert response.status_code != 401, \
+            "El endpoint de health no debe requerir autenticación"
+    
+    def test_health_response_structure(self):
+        """
+        Test: La respuesta debe tener la estructura correcta.
+        
+        Verifica que:
+        - Contiene todos los campos requeridos
+        - service = 'data-extraction-service'
+        """
+        response = requests.get(DATA_EXTRACTION_HEALTH_ENDPOINT)
+        data = response.json()
+        
+        assert "status" in data, "Debe contener 'status'"
+        assert "service" in data, "Debe contener 'service'"
+        assert "version" in data, "Debe contener 'version'"
+        assert "timestamp" in data, "Debe contener 'timestamp'"
+        assert "uptime" in data, "Debe contener 'uptime'"
+        assert "checks" in data, "Debe contener 'checks'"
+        
+        assert data["service"] == "data-extraction-service", \
+            f"El servicio debe ser 'data-extraction-service', es '{data['service']}'"
+    
+    def test_health_includes_filesystem_check(self):
+        """
+        Test: Debe incluir verificación del sistema de archivos.
+        
+        Verifica que:
+        - Los checks incluyen 'filesystem' (dependencia clave para extracción)
+        """
+        response = requests.get(DATA_EXTRACTION_HEALTH_ENDPOINT)
+        data = response.json()
+        
+        checks = data["checks"]
+        assert "filesystem" in checks, \
+            "Los checks deben incluir verificación de 'filesystem'"
+    
+    def test_health_includes_auth_service_check(self):
+        """
+        Test: Debe incluir verificación del servicio de autenticación.
+        
+        Verifica que:
+        - Los checks incluyen 'auth_service' (dependencia externa)
+        """
+        response = requests.get(DATA_EXTRACTION_HEALTH_ENDPOINT)
+        data = response.json()
+        
+        checks = data["checks"]
+        assert "auth_service" in checks, \
+            "Los checks deben incluir verificación de 'auth_service'"
+    
+    def test_health_response_time(self):
+        """Test: El endpoint debe responder rápidamente (< 100ms)."""
+        start_time = time.time()
+        response = requests.get(DATA_EXTRACTION_HEALTH_ENDPOINT)
+        end_time = time.time()
+        
+        response_time = (end_time - start_time) * 1000
+        
+        assert response_time < 100, \
+            f"El tiempo de respuesta ({response_time:.2f}ms) debe ser inferior a 100ms"
+
+
 class TestHealthComparison:
     """Tests comparativos entre los health checks de todos los servicios."""
     
@@ -316,7 +397,8 @@ class TestHealthComparison:
         services = [
             ("auth-service", AUTH_HEALTH_ENDPOINT),
             ("data-collection-service", DATA_COLLECTION_HEALTH_ENDPOINT),
-            ("data-manipulation-service", DATA_MANIPULATION_HEALTH_ENDPOINT)
+            ("data-manipulation-service", DATA_MANIPULATION_HEALTH_ENDPOINT),
+            ("data-extraction-service", DATA_EXTRACTION_HEALTH_ENDPOINT)
         ]
         
         for service_name, endpoint in services:
@@ -338,7 +420,8 @@ class TestHealthComparison:
         endpoints = [
             AUTH_HEALTH_ENDPOINT,
             DATA_COLLECTION_HEALTH_ENDPOINT,
-            DATA_MANIPULATION_HEALTH_ENDPOINT
+            DATA_MANIPULATION_HEALTH_ENDPOINT,
+            DATA_EXTRACTION_HEALTH_ENDPOINT
         ]
         
         required_fields = ["status", "service", "version", "timestamp", "uptime", "checks"]
@@ -363,7 +446,8 @@ class TestHealthComparison:
         endpoints = [
             AUTH_HEALTH_ENDPOINT,
             DATA_COLLECTION_HEALTH_ENDPOINT,
-            DATA_MANIPULATION_HEALTH_ENDPOINT
+            DATA_MANIPULATION_HEALTH_ENDPOINT,
+            DATA_EXTRACTION_HEALTH_ENDPOINT
         ]
         
         version_pattern = re.compile(r'^\d+\.\d+\.\d+$')

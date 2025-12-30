@@ -1,0 +1,231 @@
+openapi: 3.0.3
+info:
+  title: Microservicio de Extracción de Datos - Análisis de Gastos
+  description: |
+    API REST del microservicio de extracción de datos para la aplicación de análisis de gastos.
+    
+    Este microservicio es responsable de:
+    - Extracción de datos desde archivos CSV y Excel
+    - Validación y normalización de datos
+    - Transformación de datos a formatos estructurados
+    - Provisión de datos procesados a otros servicios
+    
+    ## Seguridad
+    - Requiere autenticación mediante token JWT del servicio de autenticación
+    - Todas las comunicaciones deben realizarse mediante HTTPS en producción
+    - Los usuarios solo pueden acceder a sus propios datos
+    
+    ## Arquitectura
+    Este servicio forma parte de una arquitectura de microservicios que incluye:
+    - **Autenticación** (puerto 8001): Gestión de usuarios y tokens
+    - **Recopilación de Datos** (puerto 8002): Almacenamiento de gastos
+    - **Manipulación de Datos** (puerto 8003): Análisis y procesamiento
+    - **Extracción de Datos** (puerto 8004): Lectura y transformación de archivos
+    
+    ## Dependencias
+    - Servicio de Autenticación: Validación de tokens JWT
+    - Sistema de archivos: Acceso a archivos CSV y Excel
+  version: 1.0.0
+  contact:
+    name: Equipo de Desarrollo
+    email: dev@analisis-gastos.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8004
+    description: Servidor de desarrollo local
+  - url: https://staging-extraction.analisis-gastos.com
+    description: Servidor de staging
+  - url: https://extraction.analisis-gastos.com
+    description: Servidor de producción
+
+tags:
+  - name: Health
+    description: Endpoints de verificación de salud del servicio
+
+paths:
+  /api/v1/health:
+    get:
+      tags:
+        - Health
+      summary: Verificación de salud del servicio
+      description: |
+        Endpoint público para verificar el estado de salud del microservicio de extracción de datos.
+        
+        **Caso de Uso:** 02-Health-Check
+        
+        Este endpoint verifica:
+        - Acceso al sistema de archivos
+        - Conectividad con el servicio de autenticación
+        - Estado general del servicio
+        
+        **Estados posibles:**
+        - `healthy`: Servicio y todas las dependencias funcionando correctamente
+        - `degraded`: Servicio funcionando pero con problemas en dependencias no críticas
+        - `unhealthy`: Servicio con fallos críticos en filesystem
+        - `starting`: Servicio en proceso de inicialización
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Servicio saludable o degradado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              examples:
+                healthy:
+                  summary: Servicio completamente saludable
+                  value:
+                    status: healthy
+                    service: data-extraction-service
+                    version: 1.0.0
+                    timestamp: "2025-12-30T10:30:00Z"
+                    uptime: 86400
+                    checks:
+                      filesystem:
+                        status: healthy
+                        response_time_ms: 8
+                      auth_service:
+                        status: healthy
+                        response_time_ms: 22
+                degraded:
+                  summary: Servicio degradado (auth_service caído)
+                  value:
+                    status: degraded
+                    service: data-extraction-service
+                    version: 1.0.0
+                    timestamp: "2025-12-30T10:30:00Z"
+                    uptime: 86400
+                    checks:
+                      filesystem:
+                        status: healthy
+                        response_time_ms: 8
+                      auth_service:
+                        status: unhealthy
+                        response_time_ms: 5000
+                        error: "Connection timeout"
+        '503':
+          description: Servicio no saludable o iniciándose
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              examples:
+                unhealthy:
+                  summary: Servicio no saludable (filesystem inaccesible)
+                  value:
+                    status: unhealthy
+                    service: data-extraction-service
+                    version: 1.0.0
+                    timestamp: "2025-12-30T10:30:00Z"
+                    uptime: 86400
+                    checks:
+                      filesystem:
+                        status: unhealthy
+                        response_time_ms: null
+                        error: "Permission denied"
+                      auth_service:
+                        status: healthy
+                        response_time_ms: 20
+                starting:
+                  summary: Servicio iniciándose
+                  value:
+                    status: starting
+                    service: data-extraction-service
+                    version: 1.0.0
+                    timestamp: "2025-12-30T10:30:00Z"
+                    uptime: 3
+                    checks:
+                      filesystem:
+                        status: connecting
+                        response_time_ms: null
+                      auth_service:
+                        status: connecting
+                        response_time_ms: null
+
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - service
+        - version
+        - timestamp
+        - uptime
+        - checks
+      properties:
+        status:
+          type: string
+          description: Estado general del servicio
+          enum:
+            - healthy
+            - degraded
+            - unhealthy
+            - starting
+          example: healthy
+        service:
+          type: string
+          description: Nombre del microservicio
+          example: data-extraction-service
+        version:
+          type: string
+          description: Versión del servicio (formato semántico)
+          pattern: '^\d+\.\d+\.\d+$'
+          example: 1.0.0
+        timestamp:
+          type: string
+          format: date-time
+          description: Marca de tiempo de la verificación (ISO 8601)
+          example: "2025-12-30T10:30:00Z"
+        uptime:
+          type: integer
+          description: Tiempo en segundos desde que el servicio inició
+          minimum: 0
+          example: 86400
+        checks:
+          type: object
+          description: Mapa de verificaciones de dependencias
+          additionalProperties:
+            $ref: '#/components/schemas/HealthCheck'
+          example:
+            filesystem:
+              status: healthy
+              response_time_ms: 8
+            auth_service:
+              status: healthy
+              response_time_ms: 22
+
+    HealthCheck:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          description: Estado de la dependencia
+          enum:
+            - healthy
+            - unhealthy
+            - connecting
+          example: healthy
+        response_time_ms:
+          type: integer
+          description: Tiempo de respuesta en milisegundos
+          minimum: 0
+          nullable: true
+          example: 15
+        error:
+          type: string
+          description: Mensaje de error si la dependencia no está saludable
+          nullable: true
+          example: "Connection timeout"
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Token JWT obtenido del servicio de autenticación
