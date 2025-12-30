@@ -3,3 +3,11 @@ pytest>=7.4.0
 pytest-cov>=4.1.0
 requests>=2.31.0
 python-dotenv>=1.0.0
+
+# Dependencias de los microservicios (necesarias para importar módulos en coverage)
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+pydantic>=2.0.0
+pandas>=2.1.0
+openpyxl>=3.1.0
+xlrd>=2.0.0
