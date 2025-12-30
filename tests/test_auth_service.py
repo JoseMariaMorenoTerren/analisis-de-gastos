@@ -302,7 +302,7 @@ class TestLoginEndpoint:
         import time
         
         start_time = time.time()
-        response = requests.post(
+        requests.post(
             LOGIN_ENDPOINT,
             json=valid_credentials,
             headers={"Content-Type": "application/json"}
@@ -365,7 +365,7 @@ class TestLoginSecurity:
         
         # Nota: Este test puede ajustarse según la implementación específica
         # de rate limiting que se decida usar (X-RateLimit-*, Retry-After, etc.)
-        headers = response.headers
+        # Se pueden verificar headers como X-RateLimit-*, Retry-After, etc.
         
         # Verificar que al menos se haya considerado algún mecanismo de rate limiting
         # (Este test se puede hacer más específico una vez se implemente)

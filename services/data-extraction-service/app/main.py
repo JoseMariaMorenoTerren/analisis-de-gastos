@@ -1,6 +1,6 @@
 """
-Microservicio de Manipulación de Datos - Análisis de Gastos
-Puerto: 8003
+Microservicio de Extracción de Datos - Análisis de Gastos
+Puerto: 8004
 """
 
 from fastapi import FastAPI
@@ -9,8 +9,8 @@ from datetime import datetime, timezone
 import time
 
 app = FastAPI(
-    title="Data Manipulation Service - Análisis de Gastos",
-    description="Microservicio de procesamiento y análisis de datos",
+    title="Data Extraction Service - Análisis de Gastos",
+    description="Microservicio de extracción y procesamiento de datos desde archivos",
     version="1.0.0"
 )
 
@@ -35,31 +35,27 @@ async def health_check():
     Verifica:
     - Estado general del servicio
     - Tiempo de actividad
-    - Estado de dependencias (auth_service, data_collection_service)
+    - Estado de dependencias (filesystem, auth_service)
     """
     uptime = int(time.time() - START_TIME)
     
     # Por ahora, el servicio está en estado "healthy" simplificado
-    # En una implementación real, verificaríamos conexiones a otros servicios
+    # En una implementación real, verificaríamos acceso al filesystem y auth service
     
     return {
         "status": "healthy",
-        "service": "data-manipulation-service",
+        "service": "data-extraction-service",
         "version": "1.0.0",
         "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "uptime": uptime,
         "checks": {
-            "database": {
+            "filesystem": {
                 "status": "healthy",
-                "response_time_ms": 15
+                "response_time_ms": 8
             },
             "auth_service": {
                 "status": "healthy",
-                "response_time_ms": 20
-            },
-            "data_collection_service": {
-                "status": "healthy",
-                "response_time_ms": 18
+                "response_time_ms": 22
             }
         }
     }
@@ -67,4 +63,4 @@ async def health_check():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8003)
+    uvicorn.run(app, host="0.0.0.0", port=8004)
