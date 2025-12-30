@@ -30,7 +30,7 @@ jobs:
 
       - name: Run tests with coverage
         run: |
-          pytest tests/ --cov=. --cov-report=xml --cov-report=term-missing
+          pytest tests/ --cov=services --cov-config=.coveragerc --cov-report=xml:coverage.xml --cov-report=term-missing -v
         continue-on-error: true  # Permitir que continúe aunque los tests fallen (están en RED por TDD)
 
       - name: SonarCloud Scan
