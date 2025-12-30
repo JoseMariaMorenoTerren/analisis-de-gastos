@@ -19,7 +19,7 @@ import jwt
 app = FastAPI(
     title="Auth Service - Análisis de Gastos",
     description="Microservicio de autenticación y gestión de usuarios",
-    version="1.0.0"
+    version="1.1.0"
 )
 
 # Configurar CORS
@@ -169,7 +169,7 @@ async def health_check():
     return {
         "status": "healthy",
         "service": "auth-service",
-        "version": "1.0.0",
+        "version": "1.1.0",
         "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "uptime": uptime,
         "checks": {

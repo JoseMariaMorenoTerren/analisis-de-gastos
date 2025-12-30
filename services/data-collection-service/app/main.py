@@ -22,7 +22,7 @@ import requests
 app = FastAPI(
     title="Data Collection Service - Análisis de Gastos",
     description="Microservicio de recopilación y almacenamiento de datos",
-    version="1.0.0"
+    version="1.1.0"
 )
 
 # Configurar CORS
@@ -402,7 +402,7 @@ async def health_check():
     return {
         "status": "healthy",
         "service": "data-collection-service",
-        "version": "1.0.0",
+        "version": "1.1.0",
         "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "uptime": uptime,
         "checks": {
