@@ -23,16 +23,16 @@ class TestLoginEndpoint:
     def valid_credentials(self) -> Dict[str, str]:
         """Credenciales válidas para testing."""
         return {
-            "email": "usuario@ejemplo.com",
-            "password": "contraseña_segura123"
+            "email": "user@example.com",
+            "password": "password123"
         }
     
     @pytest.fixture
     def invalid_password_credentials(self) -> Dict[str, str]:
         """Credenciales con contraseña incorrecta."""
         return {
-            "email": "usuario@ejemplo.com",
-            "password": "contraseña_incorrecta"
+            "email": "user@example.com",
+            "password": "wrong_password"
         }
     
     @pytest.fixture
@@ -272,8 +272,8 @@ class TestLoginEndpoint:
         - Se incluya el código de error ACCOUNT_DISABLED
         """
         credentials = {
-            "email": "usuario_bloqueado@ejemplo.com",
-            "password": "contraseña_correcta"
+            "email": "disabled@example.com",
+            "password": "password123"
         }
         
         response = requests.post(
