@@ -1,0 +1,245 @@
+openapi: 3.0.3
+info:
+  title: Microservicio de Manipulación de Datos - Análisis de Gastos
+  description: |
+    API REST del microservicio de manipulación de datos para la aplicación de análisis de gastos.
+    
+    Este microservicio es responsable de:
+    - Análisis estadístico de gastos
+    - Generación de reportes y gráficos
+    - Predicciones y tendencias de gastos
+    - Agregaciones por categoría, período, etc.
+    - Detección de patrones de gasto
+    
+    ## Seguridad
+    - Requiere autenticación mediante token JWT del servicio de autenticación
+    - Todas las comunicaciones deben realizarse mediante HTTPS en producción
+    - Los usuarios solo pueden analizar sus propios datos
+    
+    ## Arquitectura
+    Este servicio forma parte de una arquitectura de microservicios que incluye:
+    - **Autenticación** (puerto 8001): Gestión de usuarios y tokens
+    - **Recopilación de Datos** (puerto 8002): Almacenamiento de gastos
+    - **Manipulación de Datos** (puerto 8003): Análisis y procesamiento
+    
+    ## Dependencias
+    - Servicio de Recopilación de Datos: Obtención de datos de gastos
+    - Base de datos: PostgreSQL/MongoDB para almacenamiento de análisis
+    - Cache (futuro): Redis para caché de resultados de análisis
+  version: 1.0.0
+  contact:
+    name: Equipo de Desarrollo
+    email: dev@analisis-gastos.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8003
+    description: Servidor de desarrollo local
+  - url: https://staging-analytics.analisis-gastos.com
+    description: Servidor de staging
+  - url: https://analytics.analisis-gastos.com
+    description: Servidor de producción
+
+tags:
+  - name: Health
+    description: Endpoints de verificación de salud del servicio
+  - name: Análisis
+    description: Endpoints para análisis de gastos (futuro)
+  - name: Reportes
+    description: Endpoints para generación de reportes (futuro)
+  - name: Predicciones
+    description: Endpoints para predicciones y tendencias (futuro)
+
+paths:
+  /api/v1/health:
+    get:
+      tags:
+        - Health
+      summary: Verificación de salud del servicio
+      description: |
+        Endpoint público para verificar el estado de salud del microservicio de manipulación de datos.
+        
+        **Caso de Uso:** 02-Health-Check
+        
+        Este endpoint verifica:
+        - Conectividad con la base de datos de análisis
+        - Conectividad con el servicio de recopilación de datos
+        - Estado general del servicio
+        
+        **Estados posibles:**
+        - `healthy`: Servicio y todas las dependencias funcionando correctamente
+        - `degraded`: Servicio funcionando pero con problemas en dependencias no críticas
+        - `unhealthy`: Servicio con fallos críticos en la base de datos
+        - `starting`: Servicio en proceso de inicialización
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Servicio saludable o degradado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              examples:
+                healthy:
+                  summary: Servicio completamente saludable
+                  value:
+                    status: healthy
+                    service: data-manipulation-service
+                    version: 1.0.0
+                    timestamp: "2025-12-30T10:30:00Z"
+                    uptime: 86400
+                    checks:
+                      database:
+                        status: healthy
+                        response_time_ms: 18
+                      data_collection_service:
+                        status: healthy
+                        response_time_ms: 30
+                degraded:
+                  summary: Servicio degradado (data_collection_service lento)
+                  value:
+                    status: degraded
+                    service: data-manipulation-service
+                    version: 1.0.0
+                    timestamp: "2025-12-30T10:30:00Z"
+                    uptime: 86400
+                    checks:
+                      database:
+                        status: healthy
+                        response_time_ms: 15
+                      data_collection_service:
+                        status: degraded
+                        response_time_ms: 4500
+                        error: "High response time"
+        '503':
+          description: Servicio no saludable o iniciándose
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              examples:
+                unhealthy:
+                  summary: Servicio no saludable (base de datos caída)
+                  value:
+                    status: unhealthy
+                    service: data-manipulation-service
+                    version: 1.0.0
+                    timestamp: "2025-12-30T10:30:00Z"
+                    uptime: 86400
+                    checks:
+                      database:
+                        status: unhealthy
+                        response_time_ms: null
+                        error: "Connection refused"
+                      data_collection_service:
+                        status: healthy
+                        response_time_ms: 28
+                starting:
+                  summary: Servicio iniciándose
+                  value:
+                    status: starting
+                    service: data-manipulation-service
+                    version: 1.0.0
+                    timestamp: "2025-12-30T10:30:00Z"
+                    uptime: 2
+                    checks:
+                      database:
+                        status: connecting
+                        response_time_ms: null
+                      data_collection_service:
+                        status: connecting
+                        response_time_ms: null
+
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - service
+        - version
+        - timestamp
+        - uptime
+        - checks
+      properties:
+        status:
+          type: string
+          description: Estado general del servicio
+          enum:
+            - healthy
+            - degraded
+            - unhealthy
+            - starting
+          example: healthy
+        service:
+          type: string
+          description: Nombre del microservicio
+          example: data-manipulation-service
+        version:
+          type: string
+          description: Versión del servicio (formato semántico)
+          pattern: '^\d+\.\d+\.\d+$'
+          example: 1.0.0
+        timestamp:
+          type: string
+          format: date-time
+          description: Marca de tiempo de la verificación (ISO 8601)
+          example: "2025-12-30T10:30:00Z"
+        uptime:
+          type: integer
+          description: Tiempo en segundos desde que el servicio inició
+          minimum: 0
+          example: 86400
+        checks:
+          type: object
+          description: Mapa de verificaciones de dependencias
+          additionalProperties:
+            $ref: '#/components/schemas/HealthCheck'
+          example:
+            database:
+              status: healthy
+              response_time_ms: 18
+            data_collection_service:
+              status: healthy
+              response_time_ms: 30
+
+    HealthCheck:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          description: Estado de la dependencia
+          enum:
+            - healthy
+            - degraded
+            - unhealthy
+            - connecting
+          example: healthy
+        response_time_ms:
+          type: integer
+          description: Tiempo de respuesta en milisegundos (null si no disponible)
+          nullable: true
+          example: 18
+        error:
+          type: string
+          description: Mensaje de error (solo presente cuando hay problemas)
+          example: "Connection timeout"
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Token JWT obtenido del microservicio de autenticación.
+        
+        **Uso:**
+        ```
+        Authorization: Bearer <token>
+        ```
+
+security: []

@@ -1,0 +1,241 @@
+openapi: 3.0.3
+info:
+  title: Microservicio de Recopilación de Datos - Análisis de Gastos
+  description: |
+    API REST del microservicio de recopilación de datos para la aplicación de análisis de gastos.
+    
+    Este microservicio es responsable de:
+    - Registro y almacenamiento de gastos
+    - Gestión de categorías de gastos
+    - Consulta y actualización de registros de gastos
+    - Eliminación de registros
+    
+    ## Seguridad
+    - Requiere autenticación mediante token JWT del servicio de autenticación
+    - Todas las comunicaciones deben realizarse mediante HTTPS en producción
+    - Los usuarios solo pueden acceder a sus propios datos
+    
+    ## Arquitectura
+    Este servicio forma parte de una arquitectura de microservicios que incluye:
+    - **Autenticación** (puerto 8001): Gestión de usuarios y tokens
+    - **Recopilación de Datos** (puerto 8002): Almacenamiento de gastos
+    - **Manipulación de Datos** (puerto 8003): Análisis y procesamiento
+    
+    ## Dependencias
+    - Servicio de Autenticación: Validación de tokens JWT
+    - Base de datos: PostgreSQL/MongoDB para almacenamiento de gastos
+  version: 1.0.0
+  contact:
+    name: Equipo de Desarrollo
+    email: dev@analisis-gastos.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8002
+    description: Servidor de desarrollo local
+  - url: https://staging-data.analisis-gastos.com
+    description: Servidor de staging
+  - url: https://data.analisis-gastos.com
+    description: Servidor de producción
+
+tags:
+  - name: Health
+    description: Endpoints de verificación de salud del servicio
+  - name: Gastos
+    description: Endpoints para gestión de gastos (futuro)
+  - name: Categorías
+    description: Endpoints para gestión de categorías (futuro)
+
+paths:
+  /api/v1/health:
+    get:
+      tags:
+        - Health
+      summary: Verificación de salud del servicio
+      description: |
+        Endpoint público para verificar el estado de salud del microservicio de recopilación de datos.
+        
+        **Caso de Uso:** 02-Health-Check
+        
+        Este endpoint verifica:
+        - Conectividad con la base de datos de gastos
+        - Conectividad con el servicio de autenticación
+        - Estado general del servicio
+        
+        **Estados posibles:**
+        - `healthy`: Servicio y todas las dependencias funcionando correctamente
+        - `degraded`: Servicio funcionando pero con problemas en dependencias no críticas
+        - `unhealthy`: Servicio con fallos críticos en la base de datos
+        - `starting`: Servicio en proceso de inicialización
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Servicio saludable o degradado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              examples:
+                healthy:
+                  summary: Servicio completamente saludable
+                  value:
+                    status: healthy
+                    service: data-collection-service
+                    version: 1.0.0
+                    timestamp: "2025-12-30T10:30:00Z"
+                    uptime: 86400
+                    checks:
+                      database:
+                        status: healthy
+                        response_time_ms: 12
+                      auth_service:
+                        status: healthy
+                        response_time_ms: 25
+                degraded:
+                  summary: Servicio degradado (auth_service caído)
+                  value:
+                    status: degraded
+                    service: data-collection-service
+                    version: 1.0.0
+                    timestamp: "2025-12-30T10:30:00Z"
+                    uptime: 86400
+                    checks:
+                      database:
+                        status: healthy
+                        response_time_ms: 10
+                      auth_service:
+                        status: unhealthy
+                        response_time_ms: 5000
+                        error: "Connection timeout"
+        '503':
+          description: Servicio no saludable o iniciándose
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              examples:
+                unhealthy:
+                  summary: Servicio no saludable (base de datos caída)
+                  value:
+                    status: unhealthy
+                    service: data-collection-service
+                    version: 1.0.0
+                    timestamp: "2025-12-30T10:30:00Z"
+                    uptime: 86400
+                    checks:
+                      database:
+                        status: unhealthy
+                        response_time_ms: null
+                        error: "Connection refused"
+                      auth_service:
+                        status: healthy
+                        response_time_ms: 20
+                starting:
+                  summary: Servicio iniciándose
+                  value:
+                    status: starting
+                    service: data-collection-service
+                    version: 1.0.0
+                    timestamp: "2025-12-30T10:30:00Z"
+                    uptime: 3
+                    checks:
+                      database:
+                        status: connecting
+                        response_time_ms: null
+                      auth_service:
+                        status: connecting
+                        response_time_ms: null
+
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - service
+        - version
+        - timestamp
+        - uptime
+        - checks
+      properties:
+        status:
+          type: string
+          description: Estado general del servicio
+          enum:
+            - healthy
+            - degraded
+            - unhealthy
+            - starting
+          example: healthy
+        service:
+          type: string
+          description: Nombre del microservicio
+          example: data-collection-service
+        version:
+          type: string
+          description: Versión del servicio (formato semántico)
+          pattern: '^\d+\.\d+\.\d+$'
+          example: 1.0.0
+        timestamp:
+          type: string
+          format: date-time
+          description: Marca de tiempo de la verificación (ISO 8601)
+          example: "2025-12-30T10:30:00Z"
+        uptime:
+          type: integer
+          description: Tiempo en segundos desde que el servicio inició
+          minimum: 0
+          example: 86400
+        checks:
+          type: object
+          description: Mapa de verificaciones de dependencias
+          additionalProperties:
+            $ref: '#/components/schemas/HealthCheck'
+          example:
+            database:
+              status: healthy
+              response_time_ms: 12
+            auth_service:
+              status: healthy
+              response_time_ms: 25
+
+    HealthCheck:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          description: Estado de la dependencia
+          enum:
+            - healthy
+            - degraded
+            - unhealthy
+            - connecting
+          example: healthy
+        response_time_ms:
+          type: integer
+          description: Tiempo de respuesta en milisegundos (null si no disponible)
+          nullable: true
+          example: 12
+        error:
+          type: string
+          description: Mensaje de error (solo presente cuando hay problemas)
+          example: "Connection timeout"
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Token JWT obtenido del microservicio de autenticación.
+        
+        **Uso:**
+        ```
+        Authorization: Bearer <token>
+        ```
+
+security: []

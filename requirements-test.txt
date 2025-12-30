@@ -1,0 +1,4 @@
+# Configuración de Pytest
+pytest>=7.4.0
+requests>=2.31.0
+python-dotenv>=1.0.0
